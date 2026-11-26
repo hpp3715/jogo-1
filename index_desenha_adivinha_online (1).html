@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Desenha&Adivinha Online</title>
+<style>
+:root{--bg:#f7f1ff;--panel:#fff;--ink:#382b50;--muted:#897b9c;--purple:#8d68d8;--pink:#f4a8c7;--line:#e9def7;--green:#5aaf8a;--shadow:0 12px 35px #50347716}
+*{box-sizing:border-box}body{margin:0;background:linear-gradient(135deg,#f8f1ff,#fff2f7);font-family:system-ui,-apple-system,Segoe UI,sans-serif;color:var(--ink);min-height:100vh}
+button,input,select{font:inherit}button{border:0;border-radius:12px;padding:10px 15px;background:var(--purple);color:white;font-weight:700;cursor:pointer}button:disabled{opacity:.5;cursor:not-allowed}button.secondary{background:#eee7f8;color:var(--ink)}button.pink{background:#e98db7}button.danger{background:#d96b7c}.hidden{display:none!important}
+header{max-width:1400px;margin:auto;padding:22px 24px;display:flex;align-items:center;justify-content:space-between;gap:12px}h1{font-size:clamp(24px,4vw,36px);margin:0;color:#7250b5}h1 span{color:#df83b0}.tag{color:var(--muted);font-size:13px}
+main{max-width:1400px;margin:0 auto;padding:0 20px 30px}.panel{background:var(--panel);border:1px solid var(--line);border-radius:20px;box-shadow:var(--shadow);padding:18px}
+.entry{max-width:520px;margin:35px auto}.entry h2{margin-top:0}.field{display:flex;flex-direction:column;gap:6px;margin:12px 0}.field label{font-size:13px;color:var(--muted);font-weight:700}.field input,.field select,.chatinput{border:1px solid var(--line);border-radius:11px;padding:12px;background:#fff;color:var(--ink);width:100%;outline-color:var(--purple)}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.row>*{flex:1}.roomcode{font-size:26px;font-weight:900;letter-spacing:5px;color:#805ac5}.gamegrid{display:grid;grid-template-columns:minmax(0,1fr) 290px;gap:16px;align-items:start}.topbar{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:14px;flex-wrap:wrap}.status{background:#f4effb;border-radius:12px;padding:9px 13px;font-weight:700}.canvaswrap{background:#fff;border:2px solid var(--line);border-radius:16px;overflow:hidden;position:relative}.canvaswrap canvas{display:block;width:100%;height:auto;touch-action:none;cursor:crosshair}.tools{display:flex;gap:7px;flex-wrap:wrap;padding:12px 0}.tools button{padding:8px 11px;font-size:13px}.tools button.active{outline:3px solid #d7c4f4}.tools input[type=color]{width:38px;height:36px;border:0;background:none}.tools input[type=range]{width:95px}.side{display:flex;flex-direction:column;gap:14px}.side h3{margin:0 0 10px;font-size:16px}.players{display:flex;flex-direction:column;gap:8px}.player{display:flex;justify-content:space-between;gap:8px;background:#faf7ff;border-radius:10px;padding:8px 10px;font-size:14px}.chatlog{height:280px;overflow:auto;display:flex;flex-direction:column;gap:8px;padding:5px 0}.msg{background:#f7f2fc;border-radius:10px;padding:8px 10px;font-size:13px;overflow-wrap:anywhere}.msg strong{color:#805ac5}.msg.system{background:#fff0f6;color:#a24c79}.chatrow{display:flex;gap:7px}.chatrow input{min-width:0}.chatrow button{padding:9px 12px}.notice{padding:10px 12px;background:#fff5da;border-radius:12px;color:#86652a;font-size:13px}.word{font-weight:900;color:#8b61cf}.muted{color:var(--muted);font-size:13px}.toolbarline{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.roundoverlay{position:absolute;inset:0;background:#fffdf2ed;display:flex;align-items:center;justify-content:center;text-align:center;padding:20px;font-weight:800;font-size:22px}
+@media(max-width:850px){.gamegrid{grid-template-columns:1fr}.side{display:grid;grid-template-columns:1fr 1fr}.side .chatpanel{grid-column:1/-1}.chatlog{height:190px}}
+@media(max-width:520px){header{padding:16px}.side{display:flex}.topbar{align-items:stretch}.topbar>*{flex:1}}
+</style>
+</head>
+<body>
+<header><div><h1>Desenha<span>&</span>Adivinha</h1><div class="tag">Desenhe, adivinhe e divirta-se com seus amigos!</div></div><div class="tag" id="connection">● Não conectado</div></header>
+<main>
+<section id="entry" class="panel entry">
+<h2>Entre em uma sala 🎨</h2>
+<p class="muted">Crie uma sala e compartilhe o código com seus amigos, ou entre em uma sala existente.</p>
+<div class="field"><label>Seu apelido</label><input id="nickname" maxlength="18" placeholder="Ex.: Ana"></div>
+<div class="row"><button id="createBtn">Criar sala</button><button class="secondary" id="showJoin">Entrar com código</button></div>
+<div id="joinArea" class="hidden"><div class="field"><label>Código da sala</label><input id="roomInput" maxlength="6" placeholder="ABC123" style="text-transform:uppercase"></div><button id="joinBtn" class="pink">Entrar na sala</button></div>
+<div id="entryError" class="muted" style="color:#c44;margin-top:12px"></div>
+<hr style="border:0;border-top:1px solid var(--line);margin:20px 0">
+<div class="notice">Antes de jogar, configure o Firebase no código deste arquivo. Veja as instruções que acompanham o arquivo.</div>
+</section>
+<section id="game" class="hidden">
+<div class="topbar"><div class="toolbarline"><span class="status">Sala: <span id="roomCode" class="roomcode"></span></span><button class="secondary" id="copyCode">Copiar código</button></div><div class="toolbarline"><span class="status">⏱ <span id="timer">60</span>s</span><span class="status">Rodada <span id="roundNo">0</span></span><button class="danger" id="leaveBtn">Sair</button></div></div>
+<div class="gamegrid">
+<div class="panel">
+<div class="toolbarline" style="justify-content:space-between;margin-bottom:10px"><div id="turnInfo"><b>Aguardando jogadores...</b></div><div id="wordInfo" class="word"></div></div>
+<div class="canvaswrap"><canvas id="board" width="1000" height="620"></canvas><div id="overlay" class="roundoverlay">Aguardando o início da partida...</div></div>
+<div class="tools" id="tools">
+<button data-tool="pen" class="active">✏️ Lápis</button><button data-tool="eraser">🧽 Borracha</button><button data-tool="line">／ Linha</button><button data-tool="rect">▭ Retângulo</button><button data-tool="ellipse">◯ Elipse</button><button data-tool="clear" class="secondary">Limpar</button>
+<input id="color" type="color" value="#382b50" title="Cor"><input id="size" type="range" min="2" max="28" value="5" title="Espessura">
+</div>
+<div class="toolbarline"><button id="startBtn">Iniciar partida</button><button id="nextBtn" class="pink hidden">Próxima rodada</button><span class="muted" id="hint">O anfitrião controla o início da partida.</span></div>
+</div>
+<aside class="side">
+<div class="panel"><h3>👥 Jogadores</h3><div id="players" class="players"></div><div class="muted" style="margin-top:9px">Pontos atualizados em tempo real</div></div>
+<div class="panel chatpanel"><h3>💬 Chat</h3><div id="chatlog" class="chatlog"></div><div class="chatrow"><input id="chatInput" class="chatinput" maxlength="160" placeholder="Digite seu palpite..."><button id="sendBtn">Enviar</button></div></div>
+<div class="panel"><h3>⚙️ Configurações</h3><div class="field"><label>Modo de jogo</label><select id="mode"><option value="classic">Clássico</option><option value="free">Tema livre</option><option value="describe">Descrição</option></select></div><div class="field"><label>Tempo por rodada</label><select id="duration"><option>45</option><option selected>60</option><option>90</option><option>120</option></select></div><div class="muted">Somente o anfitrião pode alterar as configurações.</div></div>
+</aside>
+</div>
+</section>
+</main>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script>
+// 1) COLE AQUI A CONFIGURAÇÃO DO SEU PROJETO FIREBASE (Configuração do app da Web).
+const firebaseConfig = {
+  apiKey: "COLE_SUA_API_KEY",
+  authDomain: "SEU-PROJETO.firebaseapp.com",
+  databaseURL: "https://SEU-PROJETO-default-rtdb.firebaseio.com",
+  projectId: "SEU-PROJETO",
+  storageBucket: "SEU-PROJETO.appspot.com",
+  messagingSenderId: "SEU_SENDER_ID",
+  appId: "SEU_APP_ID"
+};
+</script>
+<script>
+(()=>{
+const $=id=>document.getElementById(id), words=["abacaxi","avião","bicicleta","borboleta","cachorro","castelo","chuva","computador","dinossauro"," foguete","girassol"," guitarra","hambúrguer"," guarda-chuva","leão","montanha","ônibus","picolé"," foguete","sorvete","tartaruga","violão"];
+const state={uid:null,db:null,room:null,roomRef:null,playersRef:null,msgRef:null,gameRef:null,host:false,name:"",code:"",players:{},game:{status:"waiting",round:0,drawer:null,word:"",endAt:0,duration:60,mode:"classic",scores:{}},tool:"pen",drawing:false,start:null,last:null,shape:null,off:[],timer:null};
+const canvas=$("board"),ctx=canvas.getContext("2d");
+function say(text,system=false){const d=document.createElement("div");d.className="msg"+(system?" system":"");d.textContent=text;$("chatlog").appendChild(d);$("chatlog").scrollTop=$("chatlog").scrollHeight}
+function fail(t){$("entryError").textContent=t}
+function validConfig(){return firebaseConfig.apiKey!=="COLE_SUA_API_KEY"&&firebaseConfig.databaseURL.startsWith("https://")}
+function setConn(t){$("connection").textContent="● "+t}
+function escapeCode(){return Math.random().toString(36).slice(2,8).toUpperCase()}
+function me(){return state.uid}
+function isDrawer(){return state.game.drawer===state.uid}
+function isHost(){return state.host}
+function updateControls(){
+ $("startBtn").classList.toggle("hidden",!isHost()||state.game.status==="playing");
+ $("nextBtn").classList.toggle("hidden",!isHost()||state.game.status!=="ended");
+ $("mode").disabled=!isHost();$("duration").disabled=!isHost();
+ const canDraw=state.game.status==="playing"&&isDrawer();
+ $("tools").querySelectorAll("button,input").forEach(x=>x.disabled=!canDraw);
+ $("turnInfo").textContent=state.game.status==="playing"?(isDrawer()?"Sua vez de desenhar!":" "+(state.players[state.game.drawer]?.name||"Alguém")+" está desenhando"):"Partida não iniciada";
+ $("wordInfo").textContent=isDrawer()&&state.game.status==="playing"?"Palavra: "+state.game.word:"";
+ $("hint").textContent=isHost()?"Você é o anfitrião da sala.":"Aguarde o anfitrião iniciar a partida.";
+}
+function renderPlayers(){
+ const box=$("players");box.innerHTML="";
+ Object.entries(state.players).sort((a,b)=>(b[1].score||0)-(a[1].score||0)).forEach(([id,p])=>{const d=document.createElement("div");d.className="player";const n=document.createElement("span");n.textContent=(p.name||"Jogador")+(id===state.game.drawer?" ✏️":"")+(id===state.uid?" (você)":"");const s=document.createElement("b");s.textContent=(p.score||0)+" pts";d.append(n,s);box.appendChild(d)});
+}
+function applyGame(g){state.game={...state.game,...(g||{})};$("roundNo").textContent=state.game.round||0;$("timer").textContent=Math.max(0,Math.ceil((state.game.endAt-Date.now())/1000));$("overlay").classList.toggle("hidden",state.game.status==="playing");$("overlay").textContent=state.game.status==="ended"?"Rodada encerrada!":state.game.status==="waiting"?"Aguardando o início da partida...":"";updateControls();renderPlayers();if(state.timer)clearInterval(state.timer);if(state.game.status==="playing")state.timer=setInterval(()=>{const left=Math.max(0,Math.ceil((state.game.endAt-Date.now())/1000));$("timer").textContent=left;if(left===0&&isHost())endRound()},250)}
+function setGame(g){return state.gameRef.update(g)}
+function endRound(){if(!isHost()||state.game.status!=="playing")return;setGame({status:"ended"});say("A rodada terminou. A palavra era: "+state.game.word,true)}
+function clearBoard(local=true){ctx.clearRect(0,0,canvas.width,canvas.height);if(local&&state.roomRef)state.roomRef.child("drawing").remove()}
+function drawAction(a,render=true){
+ if(a.type==="clear"){ctx.clearRect(0,0,canvas.width,canvas.height);return}
+ ctx.save();ctx.lineCap="round";ctx.lineJoin="round";ctx.lineWidth=a.size||5;ctx.strokeStyle=a.color||"#382b50";ctx.fillStyle=a.color||"#382b50";
+ if(a.type==="path"){ctx.beginPath();ctx.moveTo(a.x1,a.y1);ctx.lineTo(a.x2,a.y2);ctx.stroke()}
+ if(a.type==="shape"){ctx.beginPath();if(a.tool==="line"){ctx.moveTo(a.x1,a.y1);ctx.lineTo(a.x2,a.y2);ctx.stroke()}else if(a.tool==="rect"){ctx.strokeRect(a.x1,a.y1,a.x2-a.x1,a.y2-a.y1)}else if(a.tool==="ellipse"){ctx.ellipse((a.x1+a.x2)/2,(a.y1+a.y2)/2,Math.abs(a.x2-a.x1)/2,Math.abs(a.y2-a.y1)/2,0,0,Math.PI*2);ctx.stroke()}}
+ ctx.restore();
+}
+function broadcastDraw(a){if(state.roomRef)state.roomRef.child("drawing").push({...a,by:state.uid,at:firebase.database.ServerValue.TIMESTAMP})}
+function coords(e){const r=canvas.getBoundingClientRect();return{x:(e.clientX-r.left)*canvas.width/r.width,y:(e.clientY-r.top)*canvas.height/r.height}}
+canvas.addEventListener("pointerdown",e=>{if(!isDrawer()||state.game.status!=="playing")return;canvas.setPointerCapture(e.pointerId);state.drawing=true;state.start=coords(e);state.last=state.start;if(state.tool==="pen"||state.tool==="eraser"){state.shape={type:"path",x1:state.start.x,y1:state.start.y,x2:state.start.x,y2:state.start.y,color:state.tool==="eraser"?"#ffffff":$("color").value,size:state.tool==="eraser"?Math.max(18,+$("size").value*3):+$("size").value};}});
+canvas.addEventListener("pointermove",e=>{if(!state.drawing)return;const p=coords(e);if(state.tool==="pen"||state.tool==="eraser"){const a={type:"path",x1:state.last.x,y1:state.last.y,x2:p.x,y2:p.y,color:state.shape.color,size:state.shape.size};drawAction(a);broadcastDraw(a);state.last=p}else{state.last=p}});
+function finishDraw(){if(!state.drawing)return;state.drawing=false;if(["line","rect","ellipse"].includes(state.tool)){const a={type:"shape",tool:state.tool,x1:state.start.x,y1:state.start.y,x2:state.last.x,y2:state.last.y,color:$("color").value,size:+$("size").value};drawAction(a);broadcastDraw(a)}}
+canvas.addEventListener("pointerup",finishDraw);canvas.addEventListener("pointercancel",finishDraw);
+$("tools").querySelectorAll("[data-tool]").forEach(b=>b.onclick=()=>{state.tool=b.dataset.tool;$("tools").querySelectorAll("[data-tool]").forEach(x=>x.classList.toggle("active",x===b))});
+$("tools").querySelector('[data-tool="clear"]').onclick=()=>{if(!isDrawer())return;clearBoard();broadcastDraw({type:"clear"})};
+function listenRoom(){
+ const players=state.roomRef.child("players");state.playersRef=players;
+ players.on("value",s=>{state.players=s.val()||{};state.host=Object.keys(state.players).sort((a,b)=>(state.players[a].joined||0)-(state.players[b].joined||0))[0]===state.uid;renderPlayers();updateControls()});
+ const game=state.roomRef.child("game");state.gameRef=game;game.on("value",s=>applyGame(s.val()||{}));
+ const drawing=state.roomRef.child("drawing");drawing.limitToLast(500).on("child_added",s=>{const a=s.val();if(a&&a.by!==state.uid)drawAction(a)});
+ const messages=state.roomRef.child("messages");messages.limitToLast(100).on("child_added",s=>{const m=s.val();if(!m||m.uid===state.uid)return;if(m.kind==="chat"){say((m.name||"Jogador")+": "+m.text);if(state.game.status==="playing"&&m.text.trim().toLowerCase()===state.game.word.toLowerCase()&&!isDrawer()){state.roomRef.child("players/"+state.uid+"/score").transaction(v=>(v||0)+10);say((m.name||"Jogador")+" acertou! +10 pontos 🎉",true)}}else if(m.kind==="system")say(m.text,true)});
+}
+async function enterRoom(create,code){
+ if(!validConfig()){fail("Configure primeiro o Firebase no início do código (firebaseConfig).");return}
+ state.name=$("nickname").value.trim()||"Jogador";state.code=code||escapeCode();$("entryError").textContent="";
+ try{
+  setConn("Conectando...");if(!firebase.apps.length)firebase.initializeApp(firebaseConfig);
+  await firebase.auth().signInAnonymously();state.uid=firebase.auth().currentUser.uid;state.db=firebase.database();
+  state.roomRef=state.db.ref("rooms/"+state.code);
+  if(!create){const snap=await state.roomRef.child("created").once("value");if(!snap.exists())throw Error("Sala não encontrada. Confira o código.");}
+  if(create){const snap=await state.roomRef.child("created").once("value");if(snap.exists())throw Error("Esse código já está em uso. Crie outra sala.");await state.roomRef.child("created").set(firebase.database.ServerValue.TIMESTAMP);await state.roomRef.child("game").set({status:"waiting",round:0,duration:60,mode:"classic",scores:{}})}
+  const playerRef=state.roomRef.child("players/"+state.uid);await playerRef.set({name:state.name,joined:firebase.database.ServerValue.TIMESTAMP,score:0});playerRef.onDisconnect().remove();
+  $("entry").classList.add("hidden");$("game").classList.remove("hidden");$("roomCode").textContent=state.code;setConn("Conectado");listenRoom();if(create)say("Sala criada! Compartilhe o código "+state.code,true);else say(state.name+" entrou na sala.",true);
+ }catch(e){setConn("Não conectado");fail(e.message||"Não foi possível entrar na sala.");}
+}
+$("createBtn").onclick=()=>enterRoom(true);$("showJoin").onclick=()=>$("joinArea").classList.toggle("hidden");$("joinBtn").onclick=()=>{const c=$("roomInput").value.trim().toUpperCase();if(c.length<4){fail("Digite um código válido.");return}enterRoom(false,c)};
+async function sendChat(){const input=$("chatInput"),text=input.value.trim();if(!text||!state.roomRef)return;input.value="";await state.roomRef.child("messages").push({kind:"chat",uid:state.uid,name:state.name,text,at:firebase.database.ServerValue.TIMESTAMP});}
+$("sendBtn").onclick=sendChat;$("chatInput").addEventListener("keydown",e=>{if(e.key==="Enter")sendChat()});
+async function startRound(){
+ if(!isHost())return;const ids=Object.keys(state.players);if(ids.length<2){say("Convide pelo menos mais uma pessoa para jogar. Você também pode testar sozinho.",true)}
+ const ordered=ids.sort((a,b)=>(state.players[a].joined||0)-(state.players[b].joined||0));const drawer=ordered[(state.game.round||0)%ordered.length];const word=words[Math.floor(Math.random()*words.length)].trim();
+ clearBoard();await state.roomRef.child("drawing").remove();
+ const duration=+$("duration").value;await setGame({status:"playing",round:(state.game.round||0)+1,drawer,word,endAt:Date.now()+duration*1000,duration,mode:$("mode").value});
+ say("Nova rodada! "+(state.players[drawer]?.name||"Jogador")+" vai desenhar.",true);
+}
+$("startBtn").onclick=startRound;$("nextBtn").onclick=startRound;
+$("copyCode").onclick=async()=>{try{await navigator.clipboard.writeText(state.code);$("copyCode").textContent="Copiado!"}catch{$("copyCode").textContent=state.code}};
+$("leaveBtn").onclick=async()=>{if(state.roomRef&&state.uid)await state.roomRef.child("players/"+state.uid).remove();if(state.timer)clearInterval(state.timer);$("game").classList.add("hidden");$("entry").classList.remove("hidden");setConn("Não conectado");state.roomRef=null;state.uid=null;state.players={};state.game={status:"waiting",round:0};clearBoard(false);$("chatlog").innerHTML=""};
+window.addEventListener("beforeunload",()=>{if(state.roomRef&&state.uid)state.roomRef.child("players/"+state.uid).remove()});
+})();
+</script>
+</body>
+</html>
